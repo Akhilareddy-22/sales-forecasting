@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Sales Forecasting Dashboard</title>
+
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f4f6f9;
+        }
+
+        header {
+            background: #2c3e50;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-size: 22px;
+        }
+
+        .container {
+            padding: 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        input {
+            flex: 1;
+            padding: 10px;
+            font-size: 16px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background: #3498db;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        button:hover {
+            background: #2980b9;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+
+        ul {
+            padding-left: 20px;
+        }
+
+        .status {
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        .loading {
+            color: #2980b9;
+        }
+
+        .error {
+            color: red;
+        }
+
+        footer {
+            text-align: center;
+            padding: 10px;
+            background: #ecf0f1;
+            font-size: 14px;
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    📈 Sales Forecasting Dashboard
+</header>
+
+<div class="container">
+
+    <!-- Input Card -->
+    <div class="card">
+        <h3>Predict Future Sales</h3>
+
+        <div class="input-group">
+            <input type="number" id="days" placeholder="Enter number of days (e.g. 7)">
+            <button onclick="predictSales()">Predict</button>
+        </div>
+
+        <div id="status" class="status"></div>
+
+        <p><b>Note:</b> Uses historical sales data (no manual sales entry).</p>
+    </div>
+
+    <!-- Dashboard -->
+    <div class="dashboard">
+
+        <!-- Chart -->
+        <div class="card">
+            <h3>Sales Forecast Chart</h3>
+            <canvas id="salesChart"></canvas>
+        </div>
+
+        <!-- Values -->
+        <div class="card">
+            <h3>Predicted Sales Values</h3>
+            <ul id="salesList"></ul>
+        </div>
+
+    </div>
+</div>
+
+<footer>
+    Sales Forecasting using Time-Series Machine Learning
+</footer>
+
+<script>
+    // ================= CONFIG =================
+    const API_URL = "http://127.0.0.1:8000/predict";  // Updated to match backend endpoint
+    let chart;
+
+    // ================= FUNCTION =================
+    function predictSales() {
+        const days = document.getElementById("days").value;
+        const status = document.getElementById("status");
+
+        status.className = "status";
+        status.innerText = "";
+
+        if (!days || days <= 0) {
+            status.classList.add("error");
+            status.innerText = "Please enter a valid number of days.";
+            return;
+        }
+
+        status.classList.add("loading");
+        status.innerText = "Predicting sales... Please wait.";
+
+        // Send POST request with JSON body
+        fetch(API_URL, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ months: parseInt(days) })
+        })
+            .then(response => response.json())
+            .then(data => {
+                status.innerText = "";
+
+                const sales = data.predictions;  // Changed from predicted_sales to predictions to match backend
+
+                // Labels
+                const labels = sales.map((_, i) => `Day ${i + 1}`);
+
+                // Update sales list
+                const list = document.getElementById("salesList");
+                list.innerHTML = "";
+                sales.forEach((value, index) => {
+                    const li = document.createElement("li");
+                    li.innerText = `Day ${index + 1}: ${value.toFixed(2)}`;
+                    list.appendChild(li);
+                });
+
+                // Destroy previous chart
+                if (chart) chart.destroy();
+
+                // Draw chart
+                const ctx = document.getElementById("salesChart").getContext("2d");
+                chart = new Chart(ctx, {
+                    type: "line",
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: "Predicted Sales",
+                            data: sales,
+                            borderColor: "#3498db",
+                            backgroundColor: "rgba(52,152,219,0.2)",
+                            fill: true,
+                            tension: 0.3
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            y: { beginAtZero: false }
+                        }
+                    }
+                });
+            })
+            .catch(error => {
+                status.classList.add("error");
+                status.innerText = "Error connecting to backend API.";
+                console.error("API Error:", error);
+            });
+    }
+</script>
+
+</body>
+</html> 
